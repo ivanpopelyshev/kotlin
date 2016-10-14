@@ -38,10 +38,14 @@ class KotlinFacetConfiguration : FacetConfiguration, PersistentStateComponent<Ko
         JS("JavaScript")
     }
 
+    data class VersionInfo(
+            var languageLevel: LanguageLevel? = null,
+            var apiLevel: LanguageLevel? = null,
+            var targetPlatformKind: TargetPlatform? = null
+    )
+
     class Settings {
-        var languageLevel: LanguageLevel? = null
-        var apiLevel: LanguageLevel? = null
-        var targetPlatformKind: TargetPlatform? = null
+        val versionInfo = VersionInfo()
 
         private val customSettings = LinkedHashMap<Key<*>, Any>()
 
