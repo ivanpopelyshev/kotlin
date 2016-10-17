@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2015 JetBrains s.r.o.
+ * Copyright 2010-2016 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package org.jetbrains.kotlin.idea.caches.resolve
+package org.jetbrains.kotlin.idea.analysis
 
 import org.jetbrains.kotlin.descriptors.ClassDescriptorWithResolutionScopes
-import org.jetbrains.kotlin.idea.project.ResolveElementCache
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.codeFragmentUtil.suppressDiagnosticsInDebugMode
@@ -41,7 +40,7 @@ class CodeFragmentAnalyzer(
 ) {
 
     // component dependency cycle
-    var resolveElementCache: ResolveElementCache? = null
+    var resolveElementCache: ElementResolver? = null
         @Inject set
 
     fun analyzeCodeFragment(codeFragment: KtCodeFragment, trace: BindingTrace, bodyResolveMode: BodyResolveMode) {
