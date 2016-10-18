@@ -284,7 +284,7 @@ private fun annotationAdditionalResolve(resolveSession: ResolveSession, ktAnnota
     val modifierList = ktAnnotationEntry.getParentOfType<KtModifierList>(true)
     val declaration = modifierList?.getParentOfType<KtDeclaration>(true)
     if (declaration != null) {
-        doResolveAnnotations(getAnnotationsByDeclaration(resolveSession, modifierList, declaration))
+        doResolveAnnotations(getAnnotationsByDeclaration(resolveSession, modifierList!!, declaration))
     }
     else {
         val fileAnnotationList = ktAnnotationEntry.getParentOfType<KtFileAnnotationList>(true)
