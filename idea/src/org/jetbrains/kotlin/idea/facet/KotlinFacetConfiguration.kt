@@ -23,6 +23,9 @@ import com.intellij.facet.ui.FacetValidatorsManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.util.Key
 import org.jdom.Element
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
+import org.jetbrains.kotlin.cli.common.arguments.K2JSCompilerArguments
+import org.jetbrains.kotlin.config.CompilerSettings
 import org.jetbrains.kotlin.idea.util.DescriptionAware
 import java.util.*
 
@@ -44,8 +47,15 @@ class KotlinFacetConfiguration : FacetConfiguration, PersistentStateComponent<Ko
             var targetPlatformKind: TargetPlatform? = null
     )
 
+    class CompilerInfo {
+        var commonCompilerArguments: CommonCompilerArguments? = null
+        var k2jsCompilerArguments: K2JSCompilerArguments? = null
+        var compilerSettings: CompilerSettings? = null
+    }
+
     class Settings {
         val versionInfo = VersionInfo()
+        val compilerInfo = CompilerInfo()
 
         private val customSettings = LinkedHashMap<Key<*>, Any>()
 
@@ -78,7 +88,11 @@ class KotlinFacetConfiguration : FacetConfiguration, PersistentStateComponent<Ko
             editorContext: FacetEditorContext,
             validatorsManager: FacetValidatorsManager
     ): Array<FacetEditorTab> {
-        val tabs = arrayListOf<FacetEditorTab>(KotlinFacetEditorTab(this, editorContext, validatorsManager))
+        state.initializeIfNeeded(editorContext.module, editorContext.rootModel)
+
+        val compilerTab = KotlinFacetEditorCompilerTab(state.compilerInfo, editorContext)
+        val generalTab = KotlinFacetEditorGeneralTab(this, editorContext, validatorsManager, compilerTab)
+        val tabs = arrayListOf(generalTab, compilerTab)
         KotlinFacetConfigurationExtension.EP_NAME.extensions.flatMapTo(tabs) { it.createEditorTabs(editorContext, validatorsManager) }
         return tabs.toTypedArray()
     }
