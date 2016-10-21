@@ -28,11 +28,8 @@ import javax.lang.model.element.TypeElement
 class KaptRunnerTest {
     private companion object {
         val TEST_DATA_DIR = File("plugins/kapt3/testData/runner")
-    }
 
-    @Test
-    fun testSimple() {
-        val processor = object : AbstractProcessor() {
+        val SIMPLE_PROCESSOR = object : AbstractProcessor() {
             override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
                 for (annotation in annotations) {
                     val annotationName = annotation.simpleName.toString()
@@ -55,12 +52,15 @@ class KaptRunnerTest {
 
             override fun getSupportedAnnotationTypes() = setOf("test.MyAnnotation")
         }
+    }
 
+    @Test
+    fun testSimple() {
         val sourceOutputDir = Files.createTempDirectory("kaptRunner").toFile()
         try {
             KaptRunner().doAnnotationProcessing(
                     listOf(File(TEST_DATA_DIR, "Simple.java")),
-                    listOf(processor),
+                    listOf(SIMPLE_PROCESSOR),
                     emptyList(), // classpath
                     sourceOutputDir,
                     sourceOutputDir)
@@ -89,10 +89,24 @@ class KaptRunnerTest {
                     listOf(processor),
                     emptyList(),
                     TEST_DATA_DIR,
-                    TEST_DATA_DIR
-            )
+                    TEST_DATA_DIR)
         } catch (e: KaptError) {
+            assertEquals(KaptError.Kind.EXCEPTION, e.kind)
             assertEquals("Here we are!", e.cause!!.message)
+        }
+    }
+
+    @Test
+    fun testParsingError() {
+        try {
+            KaptRunner().doAnnotationProcessing(
+                    listOf(File(TEST_DATA_DIR, "ParseError.java")),
+                    listOf(SIMPLE_PROCESSOR),
+                    emptyList(),
+                    TEST_DATA_DIR,
+                    TEST_DATA_DIR)
+        } catch (e: KaptError) {
+            assertEquals(KaptError.Kind.JAVA_FILE_PARSING_ERROR, e.kind)
         }
     }
 }

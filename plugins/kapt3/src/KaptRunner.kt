@@ -31,9 +31,21 @@ import javax.annotation.processing.Processor
 import javax.tools.JavaFileManager
 
 class KaptError : RuntimeException {
-    constructor(message: String) : super(message)
-    constructor(cause: Throwable) : super(cause)
-    constructor(message: String, cause: Throwable) : super(message, cause)
+    val kind: Kind
+
+    enum class Kind(val message: String) {
+        JAVA_FILE_PARSING_ERROR("Java file parsing error"),
+        EXCEPTION("Exception while annotation processing"),
+        UNKNOWN("Unknown error while annotation processing")
+    }
+
+    constructor(kind: Kind) : super(kind.message) {
+        this.kind = kind
+    }
+
+    constructor(kind: Kind, cause: Throwable) : super(kind.message, cause) {
+        this.kind = kind
+    }
 }
 
 class KaptRunner {
@@ -65,14 +77,14 @@ class KaptRunner {
             val javaFileObjects = fileManager.getJavaFileObjectsFromFiles(javaSourceFiles)
             val parsedJavaFiles = compiler.parseFiles(javaFileObjects)
             if (compiler.shouldStop(CompileStates.CompileState.PARSE)) {
-                throw KaptError("Error while parsing Java files.")
+                throw KaptError(KaptError.Kind.JAVA_FILE_PARSING_ERROR)
             }
 
             val compilerAfterAnnotationProcessing: JavaCompiler? = null
             try {
                 compiler.processAnnotations(compiler.enterTrees(parsedJavaFiles))
             } catch (e: AnnotationProcessingError) {
-                throw KaptError(e.cause ?: e)
+                throw KaptError(KaptError.Kind.EXCEPTION, e.cause ?: e)
             }
 
             compilerAfterAnnotationProcessing?.close()
