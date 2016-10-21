@@ -20,6 +20,7 @@ import com.sun.tools.javac.comp.CompileStates
 import com.sun.tools.javac.file.JavacFileManager
 import com.sun.tools.javac.main.JavaCompiler
 import com.sun.tools.javac.main.Option
+import com.sun.tools.javac.processing.AnnotationProcessingError
 import com.sun.tools.javac.processing.JavacProcessingEnvironment
 import com.sun.tools.javac.util.Context
 import com.sun.tools.javac.util.Log
@@ -31,11 +32,18 @@ import javax.tools.JavaFileManager
 
 class KaptError : RuntimeException {
     constructor(message: String) : super(message)
+    constructor(cause: Throwable) : super(cause)
     constructor(message: String, cause: Throwable) : super(message, cause)
 }
 
 class KaptRunner {
-    fun doAnnotationProcessing(javaSourceFiles: List<File>, processors: List<Processor>, sourceOutputDir: File, classOutputDir: File) {
+    fun doAnnotationProcessing(
+            javaSourceFiles: List<File>,
+            processors: List<Processor>,
+            classpath: List<File>,
+            sourceOutputDir: File,
+            classOutputDir: File
+    ) {
         val context = Context()
         JavacFileManager.preRegister(context)
         KaptJavaCompiler.preRegister(context)
@@ -43,6 +51,7 @@ class KaptRunner {
         val options = Options.instance(context)
         context.put(Log.outKey, PrintWriter(System.err, true))
         options.put(Option.PROC, "only") // Only process annotations
+        classpath.forEach { options.put(Option.CLASSPATH, it.canonicalPath) }
         options.put(Option.S, sourceOutputDir.canonicalPath)
         options.put(Option.D, classOutputDir.canonicalPath)
 
@@ -59,8 +68,14 @@ class KaptRunner {
                 throw KaptError("Error while parsing Java files.")
             }
 
-            val compilerAfterAnnotationProcessing = compiler.processAnnotations(compiler.enterTrees(parsedJavaFiles))
-            compilerAfterAnnotationProcessing.close()
+            val compilerAfterAnnotationProcessing: JavaCompiler? = null
+            try {
+                compiler.processAnnotations(compiler.enterTrees(parsedJavaFiles))
+            } catch (e: AnnotationProcessingError) {
+                throw KaptError(e.cause ?: e)
+            }
+
+            compilerAfterAnnotationProcessing?.close()
         } finally {
             processingEnvironment.close()
             fileManager.close()

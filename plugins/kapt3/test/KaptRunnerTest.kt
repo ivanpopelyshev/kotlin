@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.kapt3.KaptError
 import org.jetbrains.kotlin.kapt3.KaptRunner
 import org.junit.Assert
 import org.junit.Assert.*
@@ -60,12 +61,38 @@ class KaptRunnerTest {
             KaptRunner().doAnnotationProcessing(
                     listOf(File(TEST_DATA_DIR, "Simple.java")),
                     listOf(processor),
+                    emptyList(), // classpath
                     sourceOutputDir,
                     sourceOutputDir)
             val myMethodFile = File(sourceOutputDir, "generated/MyMethodMyAnnotation.java")
             assertTrue(myMethodFile.exists())
         } finally {
             sourceOutputDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testException() {
+        val exceptionMessage = "Here we are!"
+
+        val processor = object : AbstractProcessor() {
+            override fun process(annotations: Set<TypeElement>, roundEnv: RoundEnvironment): Boolean {
+                throw RuntimeException(exceptionMessage)
+            }
+
+            override fun getSupportedAnnotationTypes() = setOf("test.MyAnnotation")
+        }
+
+        try {
+            KaptRunner().doAnnotationProcessing(
+                    listOf(File(TEST_DATA_DIR, "Simple.java")),
+                    listOf(processor),
+                    emptyList(),
+                    TEST_DATA_DIR,
+                    TEST_DATA_DIR
+            )
+        } catch (e: KaptError) {
+            assertEquals("Here we are!", e.cause!!.message)
         }
     }
 }
