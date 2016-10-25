@@ -86,7 +86,6 @@ import org.jetbrains.kotlin.idea.hierarchy.AbstractHierarchyWithLibTest
 import org.jetbrains.kotlin.idea.highlighter.*
 import org.jetbrains.kotlin.idea.imports.AbstractJsOptimizeImportsTest
 import org.jetbrains.kotlin.idea.imports.AbstractJvmOptimizeImportsTest
-import org.jetbrains.kotlin.idea.imports.AbstractOptimizeImportsTest
 import org.jetbrains.kotlin.idea.intentions.AbstractIntentionTest
 import org.jetbrains.kotlin.idea.intentions.AbstractIntentionTest2
 import org.jetbrains.kotlin.idea.intentions.AbstractMultiFileIntentionTest
@@ -128,6 +127,7 @@ import org.jetbrains.kotlin.js.test.semantics.*
 import org.jetbrains.kotlin.jvm.compiler.*
 import org.jetbrains.kotlin.jvm.runtime.AbstractJvm8RuntimeDescriptorLoaderTest
 import org.jetbrains.kotlin.jvm.runtime.AbstractJvmRuntimeDescriptorLoaderTest
+import org.jetbrains.kotlin.kapt3.test.AbstractJCTreeConverterTest
 import org.jetbrains.kotlin.kdoc.AbstractKDocLexerTest
 import org.jetbrains.kotlin.lang.resolve.android.test.AbstractAndroidBoxTest
 import org.jetbrains.kotlin.lang.resolve.android.test.AbstractAndroidBytecodeShapeTest
@@ -1071,6 +1071,12 @@ fun main(args: Array<String>) {
 
         testClass<AbstractBytecodeListingTestForSourceRetention>() {
             model("sourceRetention", extension = "kt")
+        }
+    }
+
+    testGroup("plugins/kapt3/test", "plugins/kapt3/testData") {
+        testClass<AbstractJCTreeConverterTest> {
+            model("converter")
         }
     }
 
