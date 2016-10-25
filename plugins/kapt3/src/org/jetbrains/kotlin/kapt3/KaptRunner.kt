@@ -22,6 +22,7 @@ import com.sun.tools.javac.main.JavaCompiler
 import com.sun.tools.javac.main.Option
 import com.sun.tools.javac.processing.AnnotationProcessingError
 import com.sun.tools.javac.processing.JavacProcessingEnvironment
+import com.sun.tools.javac.tree.JCTree
 import com.sun.tools.javac.util.Context
 import com.sun.tools.javac.util.Log
 import com.sun.tools.javac.util.Options
@@ -29,6 +30,7 @@ import java.io.File
 import java.io.PrintWriter
 import javax.annotation.processing.Processor
 import javax.tools.JavaFileManager
+import com.sun.tools.javac.util.List as JavacList
 
 class KaptError : RuntimeException {
     val kind: Kind
@@ -49,6 +51,35 @@ class KaptError : RuntimeException {
 }
 
 class KaptRunner {
+    private val context = Context()
+    private val options: Options
+
+    init {
+        JavacFileManager.preRegister(context)
+        KaptJavaCompiler.preRegister(context)
+
+        options = Options.instance(context)
+        context.put(Log.outKey, PrintWriter(System.err, true))
+    }
+
+    fun parseJavaFiles(
+            javaSourceFiles: List<File>,
+            classpath: List<File>
+    ): JavacList<JCTree.JCCompilationUnit> {
+        classpath.forEach { options.put(Option.CLASSPATH, it.canonicalPath) }
+
+        val fileManager = context.get(JavaFileManager::class.java) as JavacFileManager
+        val compiler = JavaCompiler.instance(context) as KaptJavaCompiler
+
+        try {
+            val javaFileObjects = fileManager.getJavaFileObjectsFromFiles(javaSourceFiles)
+            return compiler.parseFiles(javaFileObjects)
+        } finally {
+            fileManager.close()
+            compiler.close()
+        }
+    }
+
     fun doAnnotationProcessing(
             javaSourceFiles: List<File>,
             processors: List<Processor>,
@@ -56,12 +87,6 @@ class KaptRunner {
             sourceOutputDir: File,
             classOutputDir: File
     ) {
-        val context = Context()
-        JavacFileManager.preRegister(context)
-        KaptJavaCompiler.preRegister(context)
-
-        val options = Options.instance(context)
-        context.put(Log.outKey, PrintWriter(System.err, true))
         options.put(Option.PROC, "only") // Only process annotations
         classpath.forEach { options.put(Option.CLASSPATH, it.canonicalPath) }
         options.put(Option.S, sourceOutputDir.canonicalPath)
@@ -90,6 +115,7 @@ class KaptRunner {
             compilerAfterAnnotationProcessing?.close()
         } finally {
             processingEnvironment.close()
+            compiler.close()
             fileManager.close()
         }
     }
