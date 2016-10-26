@@ -27,8 +27,8 @@ import org.jetbrains.kotlin.codegen.extensions.ExpressionCodegenExtension
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.fir.FirClassOrObject
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaClassDescriptor
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
@@ -106,7 +106,7 @@ class AndroidExpressionCodegenExtension : ExpressionCodegenExtension {
             val classBuilder: ClassBuilder,
             val state: GenerationState,
             val descriptor: ClassDescriptor,
-            val classOrObject: KtClassOrObject,
+            val classOrObject: FirClassOrObject,
             val androidClassType: AndroidClassType)
 
     override fun applyProperty(receiver: StackValue, resolvedCall: ResolvedCall<*>, c: ExpressionCodegenExtension.Context): StackValue? {
@@ -247,7 +247,7 @@ class AndroidExpressionCodegenExtension : ExpressionCodegenExtension {
     override fun generateClassSyntheticParts(
             classBuilder: ClassBuilder,
             state: GenerationState,
-            classOrObject: KtClassOrObject,
+            classOrObject: FirClassOrObject,
             descriptor: ClassDescriptor
     ) {
         if (descriptor.kind != ClassKind.CLASS || descriptor.isInner || DescriptorUtils.isLocal(descriptor)) return
@@ -292,7 +292,7 @@ class AndroidExpressionCodegenExtension : ExpressionCodegenExtension {
         iv.invokespecial(state.typeMapper.mapClass(descriptor.getSuperClassOrAny()).internalName, ON_DESTROY_METHOD_NAME, "()V", false)
         iv.areturn(Type.VOID_TYPE)
 
-        FunctionCodegen.endVisit(methodVisitor, ON_DESTROY_METHOD_NAME, classOrObject)
+        FunctionCodegen.endVisit(methodVisitor, ON_DESTROY_METHOD_NAME, classOrObject.psiOrParent)
     }
 
     private fun SyntheticPartsGenerateContext.generateClearCacheFunction() {
@@ -317,7 +317,7 @@ class AndroidExpressionCodegenExtension : ExpressionCodegenExtension {
 
         iv.visitLabel(lCacheIsNull)
         iv.areturn(Type.VOID_TYPE)
-        FunctionCodegen.endVisit(methodVisitor, CLEAR_CACHE_METHOD_NAME, classOrObject)
+        FunctionCodegen.endVisit(methodVisitor, CLEAR_CACHE_METHOD_NAME, classOrObject.psiOrParent)
     }
 
     private fun SyntheticPartsGenerateContext.generateCachedFindViewByIdFunction() {
@@ -403,6 +403,6 @@ class AndroidExpressionCodegenExtension : ExpressionCodegenExtension {
         iv.load(2, viewType)
         iv.areturn(viewType)
 
-        FunctionCodegen.endVisit(methodVisitor, CACHED_FIND_VIEW_BY_ID_METHOD_NAME, classOrObject)
+        FunctionCodegen.endVisit(methodVisitor, CACHED_FIND_VIEW_BY_ID_METHOD_NAME, classOrObject.psiOrParent)
     }
 }

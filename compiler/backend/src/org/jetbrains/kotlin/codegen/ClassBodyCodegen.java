@@ -22,6 +22,9 @@ import org.jetbrains.kotlin.backend.common.bridges.ImplKt;
 import org.jetbrains.kotlin.codegen.context.ClassContext;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.fir.FirClassOrObject;
+import org.jetbrains.kotlin.fir.FirUtil;
+import org.jetbrains.kotlin.fir.SyntheticClassOrObject;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
@@ -32,13 +35,13 @@ import java.util.List;
 
 import static org.jetbrains.kotlin.codegen.binding.CodegenBinding.enumEntryNeedSubclass;
 
-public abstract class ClassBodyCodegen extends MemberCodegen<KtClassOrObject> {
-    protected final KtClassOrObject myClass;
+public abstract class ClassBodyCodegen extends MemberCodegen<FirClassOrObject> {
+    protected final FirClassOrObject myClass;
     protected final OwnerKind kind;
     protected final ClassDescriptor descriptor;
 
     protected ClassBodyCodegen(
-            @NotNull KtClassOrObject myClass,
+            @NotNull FirClassOrObject myClass,
             @NotNull ClassContext context,
             @NotNull ClassBuilder v,
             @NotNull GenerationState state,
@@ -79,8 +82,16 @@ public abstract class ClassBodyCodegen extends MemberCodegen<KtClassOrObject> {
         generateConstructors();
         generateDefaultImplsIfNeeded();
 
+        // Generate _declared_ companions
         for (KtObjectDeclaration companion : companions) {
-            generateDeclaration(companion);
+            genClassOrObject(companion);
+        }
+
+        // Generate synthetic (non-declared) companion if needed
+        ClassDescriptor companionObjectDescriptor = descriptor.getCompanionObjectDescriptor();
+        SyntheticClassOrObject syntheticCompanionObject = FirUtil.getSyntheticClassOrObject(companionObjectDescriptor);
+        if (syntheticCompanionObject != null) {
+            genSyntheticClassOrObject(syntheticCompanionObject, companionObjectDescriptor);
         }
 
         if (!DescriptorUtils.isInterface(descriptor)) {
@@ -152,7 +163,7 @@ public abstract class ClassBodyCodegen extends MemberCodegen<KtClassOrObject> {
     @NotNull
     protected List<KtParameter> getPrimaryConstructorParameters() {
         if (myClass instanceof KtClass) {
-            return ((KtClass) myClass).getPrimaryConstructorParameters();
+            return myClass.getPrimaryConstructorParameters();
         }
         return Collections.emptyList();
     }

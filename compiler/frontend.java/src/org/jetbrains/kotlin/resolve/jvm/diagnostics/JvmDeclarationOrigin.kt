@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.resolve.jvm.diagnostics
 
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOriginKind.*
@@ -55,7 +55,12 @@ fun OtherOrigin(element: PsiElement?, descriptor: DeclarationDescriptor?): JvmDe
             JvmDeclarationOrigin.NO_ORIGIN
         else JvmDeclarationOrigin(OTHER, element, descriptor)
 
+fun OtherOriginFir(element: FirElement?, descriptor: DeclarationDescriptor?): JvmDeclarationOrigin =
+        OtherOrigin(element?.psiOrParent, descriptor)
+
 fun OtherOrigin(element: PsiElement): JvmDeclarationOrigin = OtherOrigin(element, null)
+
+fun OtherOriginFir(element: FirElement): JvmDeclarationOrigin = OtherOrigin(element.psiOrParent, null)
 
 fun OtherOrigin(descriptor: DeclarationDescriptor): JvmDeclarationOrigin = OtherOrigin(null, descriptor)
 
@@ -72,7 +77,7 @@ fun MultifileClass(representativeFile: KtFile?, descriptor: PackageFragmentDescr
 fun MultifileClassPart(file: KtFile, descriptor: PackageFragmentDescriptor): JvmDeclarationOrigin =
         JvmDeclarationOrigin(MULTIFILE_CLASS_PART, file, descriptor)
 
-fun DefaultImpls(element: KtClassOrObject, descriptor: ClassDescriptor): JvmDeclarationOrigin = JvmDeclarationOrigin(INTERFACE_DEFAULT_IMPL, element, descriptor)
+fun DefaultImpls(element: PsiElement?, descriptor: ClassDescriptor): JvmDeclarationOrigin = JvmDeclarationOrigin(INTERFACE_DEFAULT_IMPL, element, descriptor)
 fun DelegationToDefaultImpls(element: PsiElement?, descriptor: FunctionDescriptor): JvmDeclarationOrigin =
         JvmDeclarationOrigin(DELEGATION_TO_DEFAULT_IMPLS, element, descriptor)
 

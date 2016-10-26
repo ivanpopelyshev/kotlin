@@ -35,6 +35,9 @@ import org.jetbrains.kotlin.descriptors.annotations.Annotations;
 import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.kotlin.fileClasses.FileClasses;
 import org.jetbrains.kotlin.fileClasses.JvmFileClassesProvider;
+import org.jetbrains.kotlin.fir.FirClassOrObject;
+import org.jetbrains.kotlin.fir.FirElement;
+import org.jetbrains.kotlin.fir.SyntheticClassOrObject;
 import org.jetbrains.kotlin.load.java.JavaVisibilities;
 import org.jetbrains.kotlin.load.java.JvmAbi;
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader;
@@ -73,7 +76,7 @@ import static org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin.
 import static org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOriginKt.Synthetic;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclarationContainer*/> implements InnerClassConsumer {
+public abstract class MemberCodegen<T extends FirElement/* TODO: & KtDeclarationContainer*/> implements InnerClassConsumer {
     protected final GenerationState state;
     protected final T element;
     protected final FieldOwnerContext context;
@@ -169,7 +172,7 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
     protected void done() {
         if (clInit != null) {
             clInit.v.visitInsn(RETURN);
-            FunctionCodegen.endVisit(clInit.v, "static initializer", element);
+            FunctionCodegen.endVisit(clInit.v, "static initializer", element.getPsiOrParent());
         }
 
         writeInnerClasses();
@@ -263,9 +266,21 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
         if (descriptor.getName().equals(SpecialNames.NO_NAME_PROVIDED)) {
             badDescriptor(descriptor, state.getClassBuilderMode());
         }
+        genClassOrObject(parentContext, aClass, state, parentCodegen, descriptor);
+    }
+
+    private static void genClassOrObject(
+            @NotNull CodegenContext parentContext,
+            @NotNull FirClassOrObject aClass,
+            @NotNull GenerationState state,
+            @Nullable MemberCodegen<?> parentCodegen,
+            @NotNull ClassDescriptor descriptor
+    ) {
 
         Type classType = state.getTypeMapper().mapClass(descriptor);
-        ClassBuilder classBuilder = state.getFactory().newVisitor(JvmDeclarationOriginKt.OtherOrigin(aClass, descriptor), classType, aClass.getContainingFile());
+        ClassBuilder classBuilder = state.getFactory().newVisitor(
+                JvmDeclarationOriginKt.OtherOriginFir(aClass, descriptor),
+                classType, aClass.getContainingKtFile());
         ClassContext classContext = parentContext.intoClass(descriptor, OwnerKind.IMPLEMENTATION, state);
         new ImplementationBodyCodegen(aClass, classContext, classBuilder, state, parentCodegen, false).generate();
     }
@@ -278,6 +293,10 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
 
     public void genClassOrObject(KtClassOrObject aClass) {
         genClassOrObject(context, aClass, state, this);
+    }
+
+    public void genSyntheticClassOrObject(SyntheticClassOrObject aClass, ClassDescriptor descriptor) {
+        genClassOrObject(context, aClass, state, this, descriptor);
     }
 
     private void writeInnerClasses() {
@@ -602,14 +621,14 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
     @NotNull
     public DefaultSourceMapper getOrCreateSourceMapper() {
         if (sourceMapper == null) {
-            sourceMapper = new DefaultSourceMapper(SourceInfo.Companion.createInfo(element, getClassName()));
+            sourceMapper = new DefaultSourceMapper(SourceInfo.Companion.createInfo(element.getKt(), getClassName()));
         }
         return sourceMapper;
     }
 
     protected void generateConstInstance(@NotNull Type thisAsmType, @NotNull Type fieldAsmType) {
         v.newField(
-                JvmDeclarationOriginKt.OtherOrigin(element), ACC_STATIC | ACC_FINAL | ACC_PUBLIC, JvmAbi.INSTANCE_FIELD,
+                JvmDeclarationOriginKt.OtherOriginFir(element), ACC_STATIC | ACC_FINAL | ACC_PUBLIC, JvmAbi.INSTANCE_FIELD,
                 fieldAsmType.getDescriptor(), null, null
         );
 
@@ -637,7 +656,7 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
                     new FunctionGenerationStrategy.CodegenBased(state) {
                         @Override
                         public void doGenerateBody(@NotNull ExpressionCodegen codegen, @NotNull JvmMethodSignature signature) {
-                            markLineNumberForElement(element, codegen.v);
+                            markLineNumberForElement(element.getPsiOrParent(), codegen.v);
 
                             generateMethodCallTo(original, accessor, codegen.v).coerceTo(signature.getReturnType(), codegen.v);
 
@@ -672,7 +691,7 @@ public abstract class MemberCodegen<T extends KtElement/* TODO: & JetDeclaration
 
                     InstructionAdapter iv = codegen.v;
 
-                    markLineNumberForElement(element, iv);
+                    markLineNumberForElement(element.getPsiOrParent(), iv);
 
                     Type[] argTypes = signature.getAsmMethod().getArgumentTypes();
                     for (int i = 0, reg = 0; i < argTypes.length; i++) {

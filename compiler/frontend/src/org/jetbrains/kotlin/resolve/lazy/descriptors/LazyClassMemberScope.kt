@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.incremental.components.LookupLocation
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.incremental.record
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
@@ -82,6 +83,7 @@ open class LazyClassMemberScope(
         }
 
         addDataClassMethods(result, location)
+        addSerializerCompanionClass(result, location)
 
         result.trimToSize()
         return result
@@ -129,6 +131,10 @@ open class LazyClassMemberScope(
         return functions
     }
 
+    override fun getNonDeclaredClasses(name: Name, result: MutableSet<ClassDescriptor>) {
+        generateSerializerCompanionClass(name, result)
+    }
+
     override fun getNonDeclaredFunctions(name: Name, result: MutableSet<SimpleFunctionDescriptor>) {
         val location = NoLookupLocation.FOR_ALREADY_TRACKED
 
@@ -138,6 +144,7 @@ open class LazyClassMemberScope(
         }
         result.addAll(generateDelegatingDescriptors(name, EXTRACT_FUNCTIONS, result))
         generateDataClassMethods(result, name, location, fromSupertypes)
+        generateSerializerCompanionMethods(result, name, fromSupertypes)
         generateFakeOverrides(name, fromSupertypes, result, SimpleFunctionDescriptor::class.java)
     }
 
@@ -150,8 +157,8 @@ open class LazyClassMemberScope(
         if (!thisDescriptor.isData) return
 
         val constructor = getPrimaryConstructor() ?: return
+        val primaryConstructorParameters = declarationProvider.primaryConstructorParameters
 
-        val primaryConstructorParameters = declarationProvider.getOwnerInfo().primaryConstructorParameters
         assert(constructor.valueParameters.size == primaryConstructorParameters.size) { "From descriptor: " + constructor.valueParameters.size + " but from PSI: " + primaryConstructorParameters.size }
 
         if (DataClassDescriptorResolver.isComponentLike(name)) {
@@ -210,6 +217,40 @@ open class LazyClassMemberScope(
         }
     }
 
+    private fun generateSerializerCompanionClass(name: Name, result: MutableSet<ClassDescriptor>) {
+        if (!thisDescriptor.isSerializable) return
+
+        if (name == SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT && result.none { it.isCompanionObject }) {
+            // forces creation of companion object if needed
+            val companionObjectDescriptor = thisDescriptor.companionObjectDescriptor ?: return
+            result.add(companionObjectDescriptor)
+        }
+    }
+
+    private fun generateSerializerCompanionMethods(
+            result: MutableCollection<SimpleFunctionDescriptor>,
+            name: Name,
+            fromSupertypes: List<SimpleFunctionDescriptor>
+    ) {
+        val classDescriptor = getSerializableClassDescriptor(thisDescriptor) ?: return
+
+        fun shouldAddSerializerFunction(checkParameters: (FunctionDescriptor) -> Boolean): Boolean {
+            // Add 'save' / 'load' iff there is no such declared member AND there is no such final member in supertypes
+            return result.none(checkParameters) &&
+                   fromSupertypes.none { checkParameters(it) && it.modality == Modality.FINAL }
+        }
+
+        if (name == KSerializerDescriptorResolver.SAVE_NAME &&
+            shouldAddSerializerFunction { classDescriptor.checkSaveMethodParameters(it.valueParameters) }) {
+            result.add(KSerializerDescriptorResolver.createSaveFunctionDescriptor(thisDescriptor, classDescriptor))
+        }
+
+        if (name == KSerializerDescriptorResolver.LOAD_NAME &&
+            shouldAddSerializerFunction { classDescriptor.checkLoadMethodParameters(it.valueParameters) }) {
+            result.add(KSerializerDescriptorResolver.createLoadFunctionDescriptor(thisDescriptor, classDescriptor))
+        }
+    }
+
     override fun getContributedVariables(name: Name, location: LookupLocation): Collection<PropertyDescriptor> {
         // TODO: this should be handled by lazy property descriptors
         val properties = super.getContributedVariables(name, location)
@@ -239,13 +280,12 @@ open class LazyClassMemberScope(
     }
 
     protected open fun createPropertiesFromPrimaryConstructorParameters(name: Name, result: MutableSet<PropertyDescriptor>) {
-        val classInfo = declarationProvider.getOwnerInfo()
 
         // From primary constructor parameters
         val primaryConstructor = getPrimaryConstructor() ?: return
 
         val valueParameterDescriptors = primaryConstructor.valueParameters
-        val primaryConstructorParameters = classInfo.primaryConstructorParameters
+        val primaryConstructorParameters = declarationProvider.primaryConstructorParameters
         assert(valueParameterDescriptors.size == primaryConstructorParameters.size) {
             "From descriptor: ${valueParameterDescriptors.size} but from PSI: ${primaryConstructorParameters.size}"
         }
@@ -264,8 +304,7 @@ open class LazyClassMemberScope(
     }
 
     private fun <T : CallableMemberDescriptor> generateDelegatingDescriptors(name: Name, extractor: MemberExtractor<T>, existingDescriptors: Collection<CallableDescriptor>): Collection<T> {
-        val classOrObject = declarationProvider.getOwnerInfo().correspondingClassOrObject
-            ?: return setOf()
+        val classOrObject = declarationProvider.correspondingClassOrObject ?: return setOf()
 
         val lazyTypeResolver = object : DelegationResolver.TypeResolver {
             override fun resolve(reference: KtTypeReference): KotlinType? =
@@ -276,6 +315,14 @@ open class LazyClassMemberScope(
                     extractor.extract(type, name)
         }
         return DelegationResolver.generateDelegatedMembers(classOrObject, thisDescriptor, existingDescriptors, trace, lazyMemberExtractor, lazyTypeResolver)
+    }
+
+    private fun addSerializerCompanionClass(result: MutableCollection<DeclarationDescriptor>, location: LookupLocation) {
+        if (!thisDescriptor.isSerializable) return
+
+        val descriptor = getClassDescriptor(SpecialNames.DEFAULT_NAME_FOR_COMPANION_OBJECT, location)
+        if (descriptor != null)
+            result.add(descriptor)
     }
 
     private fun addDataClassMethods(result: MutableCollection<DeclarationDescriptor>, location: LookupLocation) {
@@ -309,8 +356,7 @@ open class LazyClassMemberScope(
     fun getPrimaryConstructor(): ClassConstructorDescriptor? = primaryConstructor()
 
     protected open fun resolvePrimaryConstructor(): ClassConstructorDescriptor? {
-        val ownerInfo = declarationProvider.getOwnerInfo()
-        val classOrObject = ownerInfo.correspondingClassOrObject ?: return null
+        val classOrObject = declarationProvider.correspondingClassOrObject ?: return null
 
         val hasPrimaryConstructor = classOrObject.hasExplicitPrimaryConstructor()
         if (DescriptorUtils.isInterface(thisDescriptor) && !hasPrimaryConstructor) return null
@@ -330,7 +376,7 @@ open class LazyClassMemberScope(
     }
 
     private fun resolveSecondaryConstructors(): Collection<ClassConstructorDescriptor> {
-        val classOrObject = declarationProvider.getOwnerInfo().correspondingClassOrObject ?: return emptyList()
+        val classOrObject = declarationProvider.correspondingClassOrObject ?: return emptyList()
 
         return classOrObject.getSecondaryConstructors().map { constructor ->
             val descriptor = c.functionDescriptorResolver.resolveSecondaryConstructorDescriptor(

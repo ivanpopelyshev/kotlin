@@ -19,13 +19,13 @@ package org.jetbrains.kotlin.codegen
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.fir.FirClassOrObject
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.descriptorUtil.hasDefaultValue
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes
 import org.jetbrains.kotlin.resolve.jvm.annotations.hasJvmOverloadsAnnotation
-import org.jetbrains.kotlin.resolve.jvm.diagnostics.OtherOrigin
+import org.jetbrains.kotlin.resolve.jvm.diagnostics.OtherOriginFir
 import org.jetbrains.org.objectweb.asm.Label
 import org.jetbrains.org.objectweb.asm.Opcodes
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter
@@ -44,7 +44,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
             classBuilder: ClassBuilder,
             memberCodegen: MemberCodegen<*>,
             contextKind: OwnerKind,
-            classOrObject: KtClassOrObject
+            classOrObject: FirClassOrObject
     ) {
         val methodElement = classOrObject.getPrimaryConstructor() ?: classOrObject
 
@@ -75,7 +75,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
      * @return true if the overloads annotation was found on the element, false otherwise
      */
     fun generateOverloadsIfNeeded(
-            methodElement: KtElement?,
+            methodElement: FirElement,
             functionDescriptor: FunctionDescriptor,
             delegateFunctionDescriptor: FunctionDescriptor,
             contextKind: OwnerKind,
@@ -116,7 +116,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
             delegateFunctionDescriptor: FunctionDescriptor,
             classBuilder: ClassBuilder,
             memberCodegen: MemberCodegen<*>,
-            methodElement: KtElement?,
+            methodElement: FirElement,
             contextKind: OwnerKind,
             substituteCount: Int
     ) {
@@ -125,7 +125,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
         val flags = AsmUtil.getVisibilityAccessFlag(functionDescriptor) or (if (isStatic) Opcodes.ACC_STATIC else 0)
         val remainingParameters = getRemainingParameters(functionDescriptor.original, substituteCount)
         val signature = typeMapper.mapSignature(functionDescriptor, contextKind, remainingParameters, false)
-        val mv = classBuilder.newMethod(OtherOrigin(methodElement, functionDescriptor), flags,
+        val mv = classBuilder.newMethod(OtherOriginFir(methodElement, functionDescriptor), flags,
                                         signature.asmMethod.name,
                                         signature.asmMethod.descriptor,
                                         signature.genericsSignature,
@@ -217,7 +217,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
         FunctionCodegen.generateLocalVariablesForParameters(mv, signature, null, methodBegin, methodEnd,
                                                             remainingParameters, isStatic, typeMapper)
 
-        FunctionCodegen.endVisit(mv, null, methodElement)
+        FunctionCodegen.endVisit(mv, null, methodElement.psiOrParent)
     }
 
     private fun getRemainingParameters(functionDescriptor: FunctionDescriptor,
@@ -226,7 +226,7 @@ class DefaultParameterValueSubstitutor(val state: GenerationState) {
         return functionDescriptor.valueParameters.filter { !it.declaresDefaultValue() || --remainingCount >= 0 }
     }
 
-    private fun isEmptyConstructorNeeded(constructorDescriptor: ConstructorDescriptor, classOrObject: KtClassOrObject): Boolean {
+    private fun isEmptyConstructorNeeded(constructorDescriptor: ConstructorDescriptor, classOrObject: FirClassOrObject): Boolean {
         val classDescriptor = constructorDescriptor.constructedClass
         if (classDescriptor.kind != ClassKind.CLASS) return false
 

@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.impl.source.tree.LazyParseablePsiElement;
@@ -97,5 +98,17 @@ public class KtLambdaExpression extends LazyParseablePsiElement implements KtExp
     @Override
     public String toString() {
         return getNode().getElementType().toString();
+    }
+
+    @Nullable
+    @Override
+    public KtElement getKt() {
+        return this;
+    }
+
+    @NotNull
+    @Override
+    public PsiElement getPsiOrParent() {
+        return this;
     }
 }

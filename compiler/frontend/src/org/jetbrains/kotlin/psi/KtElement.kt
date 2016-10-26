@@ -18,10 +18,9 @@ package org.jetbrains.kotlin.psi
 
 import com.intellij.psi.NavigatablePsiElement
 import com.intellij.psi.PsiReference
+import org.jetbrains.kotlin.fir.FirElement
 
-interface KtElement : NavigatablePsiElement {
-    fun getContainingKtFile(): KtFile
-
+interface KtElement : NavigatablePsiElement, FirElement {
     fun <D> acceptChildren(visitor: KtVisitor<Void, D>, data: D)
 
     fun <R, D> accept(visitor: KtVisitor<R, D>, data: D): R

@@ -25,6 +25,7 @@ import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementType;
 
@@ -110,5 +111,17 @@ public class KtElementImplStub<T extends StubElement<?>> extends StubBasedPsiEle
             @NotNull KtStubElementType<StubT, PsiT> elementType
     ) {
         return Arrays.asList(getStubOrPsiChildren(elementType, elementType.getArrayFactory()));
+    }
+
+    @Nullable
+    @Override
+    public KtElement getKt() {
+        return this;
+    }
+
+    @NotNull
+    @Override
+    public PsiElement getPsiOrParent() {
+        return this;
     }
 }

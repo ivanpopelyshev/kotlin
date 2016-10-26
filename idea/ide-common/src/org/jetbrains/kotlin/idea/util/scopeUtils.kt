@@ -67,9 +67,12 @@ fun PsiElement.getResolutionScope(bindingContext: BindingContext, resolutionFaca
         }
 
         if (parent is KtClassBody) {
-            val classDescriptor = bindingContext[BindingContext.CLASS, parent.getParent()] as? ClassDescriptorWithResolutionScopes
-            if (classDescriptor != null) {
-                return classDescriptor.scopeForMemberDeclarationResolution
+            val superParent = parent.getParent()
+            if (superParent is KtElement) {
+                val classDescriptor = bindingContext[BindingContext.CLASS, superParent] as? ClassDescriptorWithResolutionScopes
+                if (classDescriptor != null) {
+                    return classDescriptor.scopeForMemberDeclarationResolution
+                }
             }
         }
 

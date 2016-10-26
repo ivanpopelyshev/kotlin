@@ -195,7 +195,8 @@ class DebuggerClassNameProvider(val myDebugProcess: DebugProcess, val scopes: Li
     }
 
     private fun getJvmInternalNameForImpl(typeMapper: KotlinTypeMapper, ktClass: KtClassOrObject): String? {
-        val classDescriptor = typeMapper.bindingContext.get<PsiElement, ClassDescriptor>(BindingContext.CLASS, ktClass) ?: return null
+        // :todo: kludge: We actually want union type PsiElement | FirElement as a key in this slice
+        val classDescriptor = typeMapper.bindingContext.get<Any, ClassDescriptor>(BindingContext.CLASS, ktClass) ?: return null
 
         if (ktClass is KtClass && ktClass.isInterface()) {
             return typeMapper.mapDefaultImpls(classDescriptor).internalName

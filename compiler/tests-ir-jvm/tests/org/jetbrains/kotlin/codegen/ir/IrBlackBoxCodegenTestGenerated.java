@@ -14840,6 +14840,39 @@ public class IrBlackBoxCodegenTestGenerated extends AbstractIrBlackBoxCodegenTes
         }
     }
 
+    @TestMetadata("compiler/testData/codegen/box/serialization")
+    @TestDataPath("$PROJECT_ROOT")
+    @RunWith(JUnit3RunnerWithInners.class)
+    public static class Serialization extends AbstractIrBlackBoxCodegenTest {
+        public void testAllFilesPresentInSerialization() throws Exception {
+            KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/codegen/box/serialization"), Pattern.compile("^(.+)\\.kt$"), true);
+        }
+
+        @TestMetadata("serializeData.kt")
+        public void testSerializeData() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/serialization/serializeData.kt");
+            doTest(fileName);
+        }
+
+        @TestMetadata("serializeDataExplicit.kt")
+        public void testSerializeDataExplicit() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/serialization/serializeDataExplicit.kt");
+            doTest(fileName);
+        }
+
+        @TestMetadata("serializeReg.kt")
+        public void testSerializeReg() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/serialization/serializeReg.kt");
+            doTest(fileName);
+        }
+
+        @TestMetadata("serializeRegExplicit.kt")
+        public void testSerializeRegExplicit() throws Exception {
+            String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/codegen/box/serialization/serializeRegExplicit.kt");
+            doTest(fileName);
+        }
+    }
+
     @TestMetadata("compiler/testData/codegen/box/smap")
     @TestDataPath("$PROJECT_ROOT")
     @RunWith(JUnit3RunnerWithInners.class)

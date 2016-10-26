@@ -214,14 +214,19 @@ public interface BindingContext {
         }
     };
 
-    WritableSlice<PsiElement, ClassDescriptor> CLASS = Slices.createSimpleSlice();
+    // :todo: kludge: We actually want union type PsiElement | FirElement as a key in this slice
+    WritableSlice<Object, ClassDescriptor> CLASS = Slices.createSimpleSlice();
+
     WritableSlice<PsiElement, ScriptDescriptor> SCRIPT = Slices.createSimpleSlice();
     WritableSlice<KtTypeParameter, TypeParameterDescriptor> TYPE_PARAMETER = Slices.createSimpleSlice();
     /**
      * @see BindingContextUtils#recordFunctionDeclarationToDescriptor(BindingTrace, PsiElement, SimpleFunctionDescriptor)}
      */
     WritableSlice<PsiElement, SimpleFunctionDescriptor> FUNCTION = Slices.createSimpleSlice();
-    WritableSlice<PsiElement, ConstructorDescriptor> CONSTRUCTOR = Slices.createSimpleSlice();
+
+    // :todo: kludge: We actually want union type PsiElement | FirElement as a key in this slice
+    WritableSlice<Object, ConstructorDescriptor> CONSTRUCTOR = Slices.createSimpleSlice();
+
     WritableSlice<ConstructorDescriptor, ResolvedCall<ConstructorDescriptor>> CONSTRUCTOR_RESOLVED_DELEGATION_CALL =
             Slices.createSimpleSlice();
     WritableSlice<PsiElement, VariableDescriptor> VARIABLE = Slices.createSimpleSlice();
@@ -247,6 +252,7 @@ public interface BindingContext {
 
     WritableSlice<ValueParameterDescriptor, FunctionDescriptor> DATA_CLASS_COMPONENT_FUNCTION = Slices.createSimpleSlice();
     WritableSlice<ClassDescriptor, FunctionDescriptor> DATA_CLASS_COPY_FUNCTION = Slices.createSimpleSlice();
+    WritableSlice<ClassDescriptor, FunctionDescriptor> SERIALIZABLE_CLASS_LOAD_CONSTRUCTOR = Slices.createSimpleSlice();
 
     WritableSlice<FqNameUnsafe, ClassDescriptor> FQNAME_TO_CLASS_DESCRIPTOR =
             new BasicWritableSlice<FqNameUnsafe, ClassDescriptor>(DO_NOTHING, true);

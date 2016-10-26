@@ -56,6 +56,7 @@ public abstract class KtDeclarationStub<T extends StubElement<?>> extends KtModi
         return FindDocCommentKt.findDocComment(this);
     }
 
+    @NotNull
     @Override
     public PsiElement getParent() {
         T stub = getStub();

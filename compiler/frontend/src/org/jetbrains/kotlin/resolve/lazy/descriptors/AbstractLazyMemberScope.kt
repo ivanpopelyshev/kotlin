@@ -44,18 +44,29 @@ protected constructor(
 ) : MemberScopeImpl() {
 
     protected val storageManager: StorageManager = c.storageManager
-    private val classDescriptors: MemoizedFunctionToNotNull<Name, List<ClassDescriptor>> = storageManager.createMemoizedFunction { resolveClassDescriptor(it) }
+    private val classDescriptors: MemoizedFunctionToNotNull<Name, List<ClassDescriptor>> = storageManager.createMemoizedFunction { doGetClasses(it) }
     private val functionDescriptors: MemoizedFunctionToNotNull<Name, Collection<SimpleFunctionDescriptor>> = storageManager.createMemoizedFunction { doGetFunctions(it) }
     private val propertyDescriptors: MemoizedFunctionToNotNull<Name, Collection<PropertyDescriptor>> = storageManager.createMemoizedFunction { doGetProperties(it) }
     private val typeAliasDescriptors: MemoizedFunctionToNotNull<Name, Collection<TypeAliasDescriptor>> = storageManager.createMemoizedFunction { doGetTypeAliases(it) }
 
-    private fun resolveClassDescriptor(name: Name): List<ClassDescriptor> {
-        return declarationProvider.getClassOrObjectDeclarations(name).map {
-            if (it is KtScriptInfo)
-                LazyScriptDescriptor(c as ResolveSession, thisDescriptor, name, it)
+    private fun doGetClasses(name: Name): List<ClassDescriptor> {
+        val result = Sets.newLinkedHashSet<ClassDescriptor>()
+
+        for (classLikeInfo in declarationProvider.getClassOrObjectDeclarations(name)) {
+            if (classLikeInfo is KtScriptInfo)
+                result.add(LazyScriptDescriptor(c as ResolveSession, thisDescriptor, name, classLikeInfo))
             else
-                LazyClassDescriptor(c, thisDescriptor, name, it)
-        }.toReadOnlyList()
+                result.add(LazyClassDescriptor(c, thisDescriptor, name, classLikeInfo))
+        }
+
+        getNonDeclaredClasses(name, result)
+
+        return result.toReadOnlyList()
+    }
+
+    fun getClassDescriptor(name: Name, location: LookupLocation): ClassDescriptor? {
+        recordLookup(name, location)
+        return classDescriptors(name).firstOrNull()
     }
 
     override fun getContributedClassifier(name: Name, location: LookupLocation): ClassifierDescriptor? {
@@ -91,6 +102,8 @@ protected constructor(
     }
 
     protected abstract fun getScopeForMemberDeclarationResolution(declaration: KtDeclaration): LexicalScope
+
+    protected abstract fun getNonDeclaredClasses(name: Name, result: MutableSet<ClassDescriptor>)
 
     protected abstract fun getNonDeclaredFunctions(name: Name, result: MutableSet<SimpleFunctionDescriptor>)
 

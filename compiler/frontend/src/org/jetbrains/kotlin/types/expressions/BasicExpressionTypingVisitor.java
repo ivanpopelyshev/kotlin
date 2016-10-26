@@ -645,13 +645,14 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         final KotlinType[] result = new KotlinType[1];
         TemporaryBindingTrace temporaryTrace = TemporaryBindingTrace.create(context.trace,
                                                                             "trace to resolve object literal expression", expression);
-        ObservableBindingTrace.RecordHandler<PsiElement, ClassDescriptor> handler =
-                new ObservableBindingTrace.RecordHandler<PsiElement, ClassDescriptor>() {
+        // :todo: kludge: We actually want union type PsiElement | FirElement as a key in this slice
+        ObservableBindingTrace.RecordHandler<Object, ClassDescriptor> handler =
+                new ObservableBindingTrace.RecordHandler<Object, ClassDescriptor>() {
 
                     @Override
                     public void handleRecord(
-                            WritableSlice<PsiElement, ClassDescriptor> slice,
-                            PsiElement declaration,
+                            WritableSlice<Object, ClassDescriptor> slice,
+                            Object declaration,
                             final ClassDescriptor descriptor
                     ) {
                         if (slice == CLASS && declaration == expression.getObjectDeclaration()) {

@@ -53,12 +53,14 @@ public abstract class KotlinBuiltIns {
     public static final FqName COROUTINES_PACKAGE_FQ_NAME = BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("coroutines"));
     public static final FqName RANGES_PACKAGE_FQ_NAME = BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("ranges"));
     public static final FqName TEXT_PACKAGE_FQ_NAME = BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("text"));
+    public static final FqName SERIALIZATION_PACKAGE_FQ_NAME = BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("serialization"));
 
     public static final Set<FqName> BUILT_INS_PACKAGE_FQ_NAMES = setOf(
             BUILT_INS_PACKAGE_FQ_NAME,
             COLLECTIONS_PACKAGE_FQ_NAME,
             RANGES_PACKAGE_FQ_NAME,
             ANNOTATION_PACKAGE_FQ_NAME,
+            SERIALIZATION_PACKAGE_FQ_NAME,
             ReflectionTypesKt.getKOTLIN_REFLECT_FQ_NAME(),
             COROUTINES_PACKAGE_FQ_NAME,
             BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("internal"))
@@ -221,6 +223,8 @@ public abstract class KotlinBuiltIns {
         public final FqName mutableMap = collectionsFqName("MutableMap");
         public final FqName mutableMapEntry = mutableMap.child(Name.identifier("MutableEntry"));
 
+        public final FqName kSerializer = serializationFqName("KSerializer");
+
         public final FqNameUnsafe kClass = reflect("KClass");
         public final FqNameUnsafe kCallable = reflect("KCallable");
         public final FqNameUnsafe kProperty0 = reflect("KProperty0");
@@ -260,6 +264,11 @@ public abstract class KotlinBuiltIns {
         @NotNull
         private static FqNameUnsafe rangesFqName(@NotNull String simpleName) {
             return RANGES_PACKAGE_FQ_NAME.child(Name.identifier(simpleName)).toUnsafe();
+        }
+
+        @NotNull
+        private static FqName serializationFqName(@NotNull String simpleName) {
+            return SERIALIZATION_PACKAGE_FQ_NAME.child(Name.identifier(simpleName));
         }
 
         @NotNull
@@ -445,6 +454,11 @@ public abstract class KotlinBuiltIns {
     @NotNull
     public ClassDescriptor getThrowable() {
         return getBuiltInClassByName("Throwable");
+    }
+
+    @NotNull
+    public ClassDescriptor getKSerializer() {
+        return getBuiltInClassByFqName(FQ_NAMES.kSerializer);
     }
 
     @NotNull
@@ -746,6 +760,13 @@ public abstract class KotlinBuiltIns {
     }
 
     @NotNull
+    public SimpleType getKSerializerType(@NotNull SimpleType argument) {
+        Variance projectionType = Variance.INVARIANT;
+        List<TypeProjectionImpl> types = Collections.singletonList(new TypeProjectionImpl(projectionType, argument));
+        return KotlinTypeFactory.simpleNotNullType(Annotations.Companion.getEMPTY(), getKSerializer(), types);
+    }
+
+    @NotNull
     public SimpleType getAnnotationType() {
         return getAnnotation().getDefaultType();
     }
@@ -919,6 +940,10 @@ public abstract class KotlinBuiltIns {
 
     public static boolean isIterableOrNullableIterable(@NotNull KotlinType type) {
         return isConstructedFromGivenClass(type, FQ_NAMES.iterable);
+    }
+
+    public static boolean isKSerializer(@Nullable KotlinType type) {
+        return type != null && !type.isMarkedNullable() && isConstructedFromGivenClass(type, FQ_NAMES.kSerializer);
     }
 
     public static boolean isKClass(@NotNull ClassDescriptor descriptor) {
